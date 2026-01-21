@@ -3,6 +3,7 @@ const els = {
   memoryStream: document.getElementById('memoryStream'),
   refreshInsight: document.getElementById('refreshInsight'),
   exportMemory: document.getElementById('exportMemory'),
+  exportMemoryPdf: document.getElementById('exportMemoryPdf'),
   clearMemory: document.getElementById('clearMemory'),
 };
 
@@ -31,6 +32,7 @@ async function loadData() {
 function attachEvents() {
   els.refreshInsight?.addEventListener('click', refreshInsight);
   els.exportMemory?.addEventListener('click', exportMemory);
+  els.exportMemoryPdf?.addEventListener('click', exportMemoryPdf);
   els.clearMemory?.addEventListener('click', clearMemory);
 }
 
@@ -79,6 +81,33 @@ async function exportMemory() {
   a.click();
   URL.revokeObjectURL(url);
   toast('Memory exported successfully.');
+}
+
+async function exportMemoryPdf() {
+  if (!STATE.entries.length) {
+    toast('No entries available for export.', 'warn');
+    return;
+  }
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    totalEntries: STATE.entries.length,
+    insight: STATE.insight,
+    entries: STATE.entries.map(normalizeEntry)
+  };
+  showExportOverlay('Rendering your PDF...');
+  try {
+    const resp = await chrome.runtime.sendMessage({
+      type: 'EXPORT_PDF',
+      exportType: 'memory',
+      payload
+    });
+    if (!resp?.ok) throw new Error(resp?.error || 'PDF export failed');
+    toast('Memory PDF downloaded.');
+  } catch (err) {
+    toast(`Failed to export PDF: ${err.message || err}`, 'error');
+  } finally {
+    hideExportOverlay();
+  }
 }
 
 async function clearMemory() {
@@ -267,6 +296,45 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function showExportOverlay(label) {
+  let overlay = document.getElementById('memory-export-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'memory-export-overlay';
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border:3px solid rgba(148,163,184,0.3);border-top-color:#39ff14;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div class="export-label" style="font-weight:600;color:#e2e8f0;">${label}</div>
+        <div style="font-size:12px;color:#94a3b8;">Please wait while we prepare your file.</div>
+      </div>
+    `;
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(10px);
+    `;
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    overlay.appendChild(style);
+    document.body.appendChild(overlay);
+  } else {
+    overlay.querySelector('.export-label').textContent = label;
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideExportOverlay() {
+  const overlay = document.getElementById('memory-export-overlay');
+  if (overlay) overlay.remove();
 }
 
 async function handleStorageChange(changes, area) {

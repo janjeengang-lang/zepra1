@@ -16,10 +16,6 @@ const DEFAULTS = {
   personaActiveName: '',
   personaActivePrompt: '',
   surveyInsight: null,
-  aiProvider: 'cerebras',
-  googleApiKey: '',
-  googleModel: 'gemini-flash-latest',
-  googleReasonModel: 'gemini-3-flash-preview',
 };
 
 const DEFAULT_PERSONAS = [
@@ -50,6 +46,75 @@ const DEFAULT_PERSONAS = [
 ];
 
 const SESSION_DURATION = 3 * 60 * 60 * 1000; // 3 hours
+
+const EXPORT_JOBS = new Map();
+
+function buildExportFilename(type) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  switch (type) {
+    case 'memory':
+      return `zepra-memory-${stamp}.pdf`;
+    case 'identities':
+      return `zepra-identity-${stamp}.pdf`;
+    case 'personas':
+      return `zepra-personas-${stamp}.pdf`;
+    default:
+      return `zepra-export-${stamp}.pdf`;
+  }
+}
+
+async function createExportTab(exportType, jobId) {
+  const url = chrome.runtime.getURL(`${exportType}_export.html?jobId=${encodeURIComponent(jobId)}`);
+  const tab = await chrome.tabs.create({ url, active: false });
+  return tab.id;
+}
+
+async function printTabToPdf(tabId, filename) {
+  await chrome.debugger.attach({ tabId }, '1.3');
+  try {
+    const result = await chrome.debugger.sendCommand({ tabId }, 'Page.printToPDF', {
+      printBackground: true,
+      preferCSSPageSize: true,
+      marginTop: 0,
+      marginBottom: 0,
+      marginLeft: 0,
+      marginRight: 0
+    });
+    const dataUrl = `data:application/pdf;base64,${result.data}`;
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename,
+      saveAs: false
+    });
+  } finally {
+    await chrome.debugger.detach({ tabId }).catch(() => {});
+  }
+}
+
+function startPdfExport(exportType, payload) {
+  const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const filename = buildExportFilename(exportType);
+  return new Promise((resolve) => {
+    EXPORT_JOBS.set(jobId, {
+      jobId,
+      exportType,
+      payload,
+      filename,
+      tabId: null,
+      resolve
+    });
+    createExportTab(exportType, jobId)
+      .then((tabId) => {
+        const job = EXPORT_JOBS.get(jobId);
+        if (!job) return;
+        job.tabId = tabId;
+      })
+      .catch((err) => {
+        EXPORT_JOBS.delete(jobId);
+        resolve({ ok: false, error: err?.message || String(err) });
+      });
+  });
+}
 
 
 async function forceLogout(reason = 'Your session has expired. Please log in again.') {
@@ -429,6 +494,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ ok: true });
           break;
         }
+        case 'EXPORT_PDF': {
+          const { exportType, payload } = message || {};
+          if (!exportType || !payload) {
+            sendResponse({ ok: false, error: 'Missing export payload' });
+            break;
+          }
+          const result = await startPdfExport(exportType, payload);
+          sendResponse(result);
+          break;
+        }
+        case 'EXPORT_PAYLOAD_REQUEST': {
+          const { jobId } = message || {};
+          const job = jobId ? EXPORT_JOBS.get(jobId) : null;
+          if (!job) {
+            sendResponse({ ok: false, error: 'Export job not found' });
+            break;
+          }
+          sendResponse({ ok: true, payload: job.payload });
+          break;
+        }
+        case 'EXPORT_RENDERED': {
+          const { jobId } = message || {};
+          const job = jobId ? EXPORT_JOBS.get(jobId) : null;
+          if (!job) {
+            sendResponse({ ok: false, error: 'Export job missing' });
+            break;
+          }
+          if (!job.tabId) {
+            const errorMessage = 'Export tab not ready';
+            job.resolve({ ok: false, error: errorMessage });
+            sendResponse({ ok: false, error: errorMessage });
+            EXPORT_JOBS.delete(jobId);
+            break;
+          }
+          try {
+            await printTabToPdf(job.tabId, job.filename);
+            await chrome.tabs.remove(job.tabId);
+            job.resolve({ ok: true });
+            sendResponse({ ok: true });
+          } catch (err) {
+            const errorMessage = err?.message || String(err);
+            job.resolve({ ok: false, error: errorMessage });
+            sendResponse({ ok: false, error: errorMessage });
+          } finally {
+            EXPORT_JOBS.delete(jobId);
+          }
+          break;
+        }
         case 'GENERATE_PERSONA_PROFILE': {
           try {
             const { description = '' } = message;
@@ -507,18 +620,7 @@ ${STRICT_JSON}
 
 Return format: {"#email": "email", "input[name='firstName']": "firstName"}`;
 
-          const { aiProvider = 'cerebras' } = await chrome.storage.local.get('aiProvider');
-          let result;
-          if (aiProvider === 'google' && typeof screenshot === 'string' && screenshot.startsWith('data:')) {
-            const [, base64Data = ''] = screenshot.split(',');
-            const parts = [
-              { text: `${basePrompt}\nUse the attached screenshot to resolve ambiguous selectors.` },
-              { inlineData: { mimeType: 'image/png', data: base64Data } }
-            ];
-            result = await callGoogleGenerative('', { temperature: 0.1, maxOutputTokens: 1024, parts });
-          } else {
-            result = await callGenerativeModel(basePrompt, { temperature: 0.1 });
-          }
+          const result = await callGenerativeModel(basePrompt, { temperature: 0.1 });
           sendResponse({ ok: true, result });
           break;
         }
@@ -533,62 +635,7 @@ Return format: {"#email": "email", "input[name='firstName']": "firstName"}`;
 });
 
 async function callGenerativeModel(prompt, options = {}) {
-  const { aiProvider = 'cerebras' } = await chrome.storage.local.get('aiProvider');
-  if (aiProvider === 'google') {
-    return callGoogleGenerative(prompt, options);
-  }
   return callCerebras(prompt, options);
-}
-
-async function callGoogleGenerative(prompt, options = {}) {
-  const { googleApiKey = '', googleModel, googleReasonModel } = await chrome.storage.local.get(['googleApiKey', 'googleModel', 'googleReasonModel']);
-  if (!googleApiKey) {
-    const e = new Error('Missing Google Generative AI key (set it in Options).');
-    e.code = 401;
-    throw e;
-  }
-
-  const resolvedModel = options?.reasonModel
-    || (options?.model ? options.model : (options?.reasoning ? (googleReasonModel || 'gemini-3-flash-preview') : (googleModel || 'gemini-flash-latest')));
-
-  const model = encodeURIComponent(resolvedModel);
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`;
-
-  const userParts = Array.isArray(options?.parts) && options.parts.length
-    ? options.parts
-    : [{ text: prompt }];
-
-  const body = {
-    contents: [
-      {
-        role: 'user',
-        parts: userParts
-      }
-    ],
-    generationConfig: {
-      temperature: options?.temperature ?? 0.2,
-      maxOutputTokens: options?.maxOutputTokens ?? 1024
-    }
-  };
-
-  if (Array.isArray(options?.tools) && options.tools.length) {
-    body.tools = options.tools;
-  }
-
-  try {
-    const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      throw new Error(`Google Generative error ${res.status}: ${t}`);
-    }
-    const data = await res.json();
-    const parts = data?.candidates?.[0]?.content?.parts || [];
-    const text = parts.map(part => part?.text || '').join('\n');
-    return sanitize(text);
-  } catch (err) {
-    console.error('Zepra Debug: Google Generative fetch failed:', err);
-    throw err;
-  }
 }
 
 async function callCerebras(prompt, options = {}) {
@@ -628,16 +675,8 @@ async function callCerebras(prompt, options = {}) {
 }
 
 async function performOCR(imageDataUrl, lang) {
-  const { ocrApiKey = '', ocrLang, aiProvider = 'cerebras' } = await chrome.storage.local.get(['ocrApiKey', 'ocrLang', 'aiProvider']);
+  const { ocrApiKey = '', ocrLang } = await chrome.storage.local.get(['ocrApiKey', 'ocrLang']);
   const language = lang || ocrLang || DEFAULTS.ocrLang;
-
-  if (aiProvider === 'google') {
-    try {
-      return await performGoogleOCR(imageDataUrl, language);
-    } catch (err) {
-      console.warn('Google OCR failed, falling back to OCR.space', err);
-    }
-  }
 
   const endpoint = 'https://api.ocr.space/parse/image';
   const form = new FormData();
@@ -654,32 +693,6 @@ async function performOCR(imageDataUrl, lang) {
   const data = await res.json();
   const text = data?.ParsedResults?.[0]?.ParsedText || '';
   return sanitize(text);
-}
-
-async function performGoogleOCR(imageDataUrl, language) {
-  const { googleApiKey = '', googleModel } = await chrome.storage.local.get(['googleApiKey', 'googleModel']);
-  if (!googleApiKey) {
-    const e = new Error('Missing Google Generative AI key (set it in Options).');
-    e.code = 401;
-    throw e;
-  }
-
-  const [, base64Data = ''] = (imageDataUrl || '').split(',');
-  if (!base64Data) throw new Error('Invalid image data for OCR');
-
-  const promptText = `Extract every readable piece of text from this screenshot. Preserve the natural reading order from top-left to bottom-right. Return plain text only, no explanations. Use ${language || 'English'} when interpreting ambiguous characters.`;
-
-  const response = await callGoogleGenerative('', {
-    model: googleModel || 'gemini-flash-latest',
-    temperature: 0,
-    maxOutputTokens: 2048,
-    parts: [
-      { text: promptText },
-      { inlineData: { mimeType: 'image/png', data: base64Data } }
-    ]
-  });
-
-  return sanitize(response);
 }
 
 async function captureFullPageOCR(tabId, ocrLang) {

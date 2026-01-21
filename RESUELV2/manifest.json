@@ -35,7 +35,9 @@
     "clipboardRead",
     "clipboardWrite",
     "browsingData",
-    "history"
+    "history",
+    "downloads",
+    "debugger"
   ],
   "web_accessible_resources": [{
     "resources": ["icons/*", "src/media/*"],

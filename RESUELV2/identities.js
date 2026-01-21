@@ -1,6 +1,7 @@
 const grid = document.getElementById('grid');
 const createBtn = document.getElementById('create');
 const createAIBtn = document.getElementById('createAI');
+const exportIdentityPdfBtn = document.getElementById('exportIdentityPdf');
 const panel = document.getElementById('identityPanel');
 const panelTitle = document.getElementById('panelTitle');
 const closePanelBtn = document.getElementById('closePanel');
@@ -195,6 +196,7 @@ form.addEventListener('submit', e=>{
 try{ createBtn.addEventListener('click', ()=>openPanel()); }catch(_){}
 try{ createAIBtn.addEventListener('click', ()=>{ aiPrompt.value=''; openPanel({}, 'ai'); }); }catch(_){}
 try{ closePanelBtn.addEventListener('click', closePanel); }catch(_){}
+try{ exportIdentityPdfBtn.addEventListener('click', exportIdentityPdf); }catch(_){}
 
 // Delegated safety net
 document.addEventListener('click', (e)=>{
@@ -239,3 +241,63 @@ aiGenerate.addEventListener('click', async () => {
 
 load();
 
+async function exportIdentityPdf() {
+  if (!identities.length) {
+    alert('No identities available to export.');
+    return;
+  }
+  const active = identities.find((item) => item.id === activeId) || identities[0];
+  showExportOverlay('Rendering your PDF...');
+  try {
+    const resp = await chrome.runtime.sendMessage({
+      type: 'EXPORT_PDF',
+      exportType: 'identities',
+      payload: active
+    });
+    if (!resp?.ok) throw new Error(resp?.error || 'PDF export failed');
+    alert('Identity PDF downloaded.');
+  } catch (err) {
+    alert(`Failed to export PDF: ${err.message || err}`);
+  } finally {
+    hideExportOverlay();
+  }
+}
+
+function showExportOverlay(label) {
+  let overlay = document.getElementById('identity-export-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'identity-export-overlay';
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <div style="width:42px;height:42px;border:3px solid rgba(148,163,184,0.3);border-top-color:#39ff14;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div class="export-label" style="font-weight:600;color:#e2e8f0;">${label}</div>
+        <div style="font-size:12px;color:#94a3b8;">Preparing your identity file...</div>
+      </div>
+    `;
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(10px);
+    `;
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    overlay.appendChild(style);
+    document.body.appendChild(overlay);
+  } else {
+    overlay.querySelector('.export-label').textContent = label;
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideExportOverlay() {
+  const overlay = document.getElementById('identity-export-overlay');
+  if (overlay) overlay.remove();
+}
