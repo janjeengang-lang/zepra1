@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zepra Memory</title>
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    :root {
+      --bg: #05060a;
+      --panel: rgba(10, 17, 30, 0.85);
+      --accent: #39ff14;
+      --accent-alt: #14b8a6;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #f43f5e;
+      --warn: #facc15;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'JetBrains Mono', 'Cairo', 'Segoe UI', monospace;
+      background: radial-gradient(circle at top left, rgba(57,255,20,0.08), transparent 40%),
+                  radial-gradient(circle at bottom right, rgba(20,184,166,0.08), transparent 45%),
+                  #040507;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(57,255,20,0.05) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(57,255,20,0.05) 1px, transparent 1px);
+      background-size: 50px 50px;
+      opacity: 0.3;
+      z-index: 0;
+      animation: gridShift 20s linear infinite;
+    }
+    @keyframes gridShift {
+      from { transform: translateY(0); }
+      to { transform: translateY(-50px); }
+    }
+    header {
+      padding: 32px 40px 16px;
+      position: relative;
+      z-index: 1;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-shadow: 0 0 20px rgba(57,255,20,0.4);
+    }
+    header h1 span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      border: 1px solid rgba(57,255,20,0.5);
+      box-shadow: 0 0 30px rgba(57,255,20,0.25);
+      font-size: 1.6rem;
+      background: linear-gradient(135deg, rgba(57,255,20,0.15), rgba(20,184,166,0.15));
+    }
+    header p {
+      color: var(--muted);
+      margin: 12px 0 0;
+      max-width: 720px;
+      line-height: 1.6;
+    }
+    main {
+      flex: 1;
+      padding: 0 40px 40px;
+      display: grid;
+      grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+      gap: 28px;
+      align-items: flex-start;
+      z-index: 1;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(57,255,20,0.18);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      position: relative;
+    }
+    .panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      background: linear-gradient(120deg, rgba(57,255,20,0.12), transparent 55%);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .panel-heading {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      z-index: 2;
+    }
+    .panel-heading h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel h2 svg {
+      width: 22px;
+      height: 22px;
+      color: var(--accent);
+    }
+    .panel-heading p {
+      color: var(--muted);
+      margin: 0 0 18px;
+      line-height: 1.6;
+    }
+    .panel-body {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+      z-index: 1;
+    }
+    .panel-body.scrollable {
+      max-height: calc(100vh - 220px);
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .panel-body.scrollable::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel-body.scrollable::-webkit-scrollbar-thumb {
+      background: rgba(57,255,20,0.35);
+      border-radius: 999px;
+    }
+    #memoryPanel .panel-heading {
+      position: sticky;
+      top: 0;
+      margin: -24px -24px 20px;
+      padding: 24px 24px 18px;
+      background: linear-gradient(180deg, rgba(5,7,12,0.95) 0%, rgba(5,7,12,0.82) 55%, rgba(5,7,12,0));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148,163,184,0.18);
+      box-shadow: 0 18px 40px rgba(2,4,8,0.55);
+    }
+    #memoryPanel .panel-body {
+      padding-top: 4px;
+    }
+    .insight-card {
+      display: grid;
+      gap: 16px;
+    }
+    .insight-card .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      background: rgba(57,255,20,0.1);
+      border: 1px solid rgba(57,255,20,0.25);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .insight-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .insight-item {
+      background: rgba(5,6,10,0.55);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .insight-item h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-alt);
+    }
+    .insight-item p,
+    .insight-item ul {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+    .insight-item ul {
+      padding-left: 18px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    button.action-btn {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.25);
+      background: rgba(15,23,42,0.65);
+      color: var(--text);
+      font-family: inherit;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    button.action-btn.primary {
+      background: linear-gradient(135deg, rgba(57,255,20,0.25), rgba(20,184,166,0.25));
+      border-color: rgba(57,255,20,0.4);
+      color: var(--accent);
+      box-shadow: 0 12px 30px rgba(57,255,20,0.18);
+    }
+    button.action-btn.danger {
+      border-color: rgba(244,63,94,0.45);
+      color: var(--danger);
+    }
+    button.action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+    .memory-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+    }
+    .memory-card {
+      position: relative;
+      background: rgba(7,11,19,0.8);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 20px;
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.32);
+      overflow: hidden;
+    }
+    .memory-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 18px;
+      border: 1px solid rgba(57,255,20,0.12);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .memory-card:hover::before {
+      opacity: 1;
+    }
+    .memory-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .memory-seq {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .memory-seq .seq-index {
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent-alt);
+    }
+    .memory-seq .seq-time {
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .memory-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .memory-block {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(7,12,20,0.65);
+      border: 1px solid rgba(148,163,184,0.16);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .memory-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .memory-text {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      font-size: 0.96rem;
+      font-family: 'Space Grotesk', 'Cairo', sans-serif;
+    }
+    .memory-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .memory-actions button {
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.2);
+      background: rgba(12,19,32,0.7);
+      color: var(--text);
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s ease, border-color 0.2s;
+    }
+    .memory-actions button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(57,255,20,0.35);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: rgba(7,12,20,0.6);
+      border: 1px dashed rgba(148,163,184,0.25);
+      border-radius: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .badge {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid rgba(57,255,20,0.3);
+      color: var(--accent);
+      background: rgba(57,255,20,0.12);
+    }
+    .insight-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .confidence {
+      font-weight: 600;
+      color: var(--accent-alt);
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(12,19,32,0.6);
+    }
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 0 24px 32px;
+      }
+      header { padding: 24px 24px 12px; }
+      .panel-body.scrollable {
+        max-height: none;
+        padding-right: 0;
+      }
+      #memoryPanel .panel-heading {
+        position: relative;
+        margin: 0 0 18px;
+        padding: 0;
+        background: transparent;
+        border-bottom: none;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>🧠</span>Zepra AI Memory Archive</h1>
+    <p>Review every survey question and AI response you have generated, track the emerging survey objective, and keep your persona strategy aligned as you progress.</p>
+  </header>
+  <main>
+    <section class="panel" id="insightPanel">
+      <div class="panel-heading">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414M16.95 16.95l1.414 1.414M7.05 7.05L5.636 5.636" />
+          </svg>
+          Survey Intelligence
+        </h2>
+        <p>Unlocks automatically after eight answers and keeps evolving with every new survey response.</p>
+      </div>
+      <div class="panel-body">
+        <div class="insight-card" id="insightCard">
+          <div class="empty-state">Not enough data yet. Answer more questions to unlock the analysis.</div>
+        </div>
+        <div class="actions">
+          <button class="action-btn primary" id="refreshInsight">
+            <span>🔄</span> Refresh Insight
+          </button>
+          <button class="action-btn" id="exportMemory">
+            <span>💾</span> Export Memory (JSON)
+          </button>
+          <button class="action-btn danger" id="clearMemory">
+            <span>🧹</span> Clear Memory
+          </button>
+        </div>
+      </div>
+    </section>
+    <section class="panel" id="memoryPanel">
+      <div class="panel-heading">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </svg>
+          Answer Memory
+        </h2>
+        <p>Browse every question and answer, copy the best responses, or export the entire journal when you need it.</p>
+      </div>
+      <div class="panel-body scrollable">
+        <div class="memory-stream" id="memoryStream">
+          <div class="empty-state">No responses have been stored yet. Generate answers with the extension and they will appear here.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="memory.js" type="module"></script>
+</body>
+</html>

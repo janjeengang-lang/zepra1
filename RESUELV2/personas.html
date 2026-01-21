@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zepra Personas</title>
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    :root {
+      --bg: #06070c;
+      --panel: rgba(10, 15, 25, 0.85);
+      --panel-dark: rgba(4, 7, 12, 0.7);
+      --accent: #4ade80;
+      --accent-alt: #22d3ee;
+      --magenta: #f472b6;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(148,163,184,0.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Space Grotesk', 'Cairo', 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(74,222,128,0.12), transparent 45%),
+                  radial-gradient(circle at 80% 0%, rgba(34,211,238,0.12), transparent 55%),
+                  #05060b;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(74,222,128,0.12), transparent);
+      opacity: 0.25;
+      mix-blend-mode: screen;
+      animation: glowPulse 8s infinite alternate;
+    }
+    @keyframes glowPulse {
+      from { opacity: 0.2; }
+      to { opacity: 0.35; }
+    }
+    header {
+      padding: 36px 40px 18px;
+      position: relative;
+      z-index: 1;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-shadow: 0 0 25px rgba(34,211,238,0.45);
+    }
+    header h1 span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      border: 1px solid rgba(34,211,238,0.6);
+      background: linear-gradient(160deg, rgba(34,211,238,0.18), rgba(74,222,128,0.2));
+      box-shadow: 0 0 35px rgba(34,211,238,0.35);
+      font-size: 1.6rem;
+    }
+    header p {
+      margin: 12px 0 0;
+      max-width: 720px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    main {
+      flex: 1;
+      padding: 0 40px 40px;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+    .panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(34,211,238,0.15), transparent 60%);
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .panel > * { position: relative; z-index: 1; }
+    .panel h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .panel h2 span {
+      font-size: 1.6rem;
+    }
+    .toolbar {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(8,13,23,0.7);
+      border: 1px solid rgba(148,163,184,0.2);
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .switch input { display: none; }
+    .switch .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(148,163,184,0.35);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.45);
+      transition: background 0.2s ease, box-shadow 0.2s;
+    }
+    .switch input:checked + .dot {
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(74,222,128,0.55);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.25);
+      background: rgba(5,9,17,0.65);
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, rgba(74,222,128,0.25), rgba(34,211,238,0.25));
+      border-color: rgba(74,222,128,0.45);
+      color: var(--accent);
+      box-shadow: 0 12px 30px rgba(74,222,128,0.18);
+    }
+    .btn.magenta {
+      background: linear-gradient(135deg, rgba(244,114,182,0.2), rgba(34,211,238,0.2));
+      border-color: rgba(244,114,182,0.45);
+      color: #fbcfe8;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+    }
+    .persona-list {
+      margin-top: 24px;
+      display: grid;
+      gap: 18px;
+      max-height: calc(100vh - 240px);
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .persona-list::-webkit-scrollbar { width: 6px; }
+    .persona-list::-webkit-scrollbar-thumb {
+      background: rgba(59,130,246,0.35);
+      border-radius: 999px;
+    }
+    .persona-card {
+      background: var(--panel-dark);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 18px;
+      padding: 20px 22px;
+      display: grid;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .persona-card.active {
+      border-color: rgba(74,222,128,0.55);
+      box-shadow: 0 18px 45px rgba(74,222,128,0.25);
+    }
+    .persona-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 18px;
+      border: 1px solid rgba(34,211,238,0.18);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .persona-card:hover::before { opacity: 1; }
+    .persona-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .persona-main {
+      flex: 1;
+      display: grid;
+      gap: 6px;
+    }
+    .persona-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .persona-tagline {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .persona-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid rgba(148,163,184,0.22);
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(12,18,30,0.7);
+    }
+    .persona-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(74,222,128,0.15);
+      border: 1px solid rgba(74,222,128,0.35);
+      color: var(--accent);
+      font-size: 0.75rem;
+      padding: 4px 9px;
+      border-radius: 999px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .prompt-preview {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(9,12,20,0.8);
+      border: 1px solid rgba(148,163,184,0.18);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .editor {
+      background: var(--panel-dark);
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,0.2);
+      padding: 20px;
+      display: grid;
+      gap: 18px;
+    }
+    .editor h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .form-group {
+      display: grid;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.25);
+      background: rgba(5,9,17,0.75);
+      color: var(--text);
+      padding: 12px 14px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      resize: vertical;
+      min-height: 42px;
+    }
+    textarea { min-height: 120px; }
+    .editor-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .empty-state {
+      padding: 60px 30px;
+      border: 1px dashed rgba(148,163,184,0.3);
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(5,9,17,0.5);
+    }
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .loading::before {
+      content: '';
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(148,163,184,0.4);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 0 24px 32px;
+      }
+      header { padding: 28px 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>🎭</span>Zepra Personas Hub</h1>
+    <p>Activate the survey expert persona that fits your next panel, or craft a new one that helps you qualify across platforms like Five Survey, Prime Opinion, and Swagbucks. Tweak the system prompt yourself or let the AI generate it for you.</p>
+  </header>
+  <main>
+    <section class="panel">
+      <h2><span>🧩</span>Available Personas</h2>
+      <div class="toolbar">
+        <label class="switch">
+          <input type="checkbox" id="togglePersona">
+          <span class="dot"></span>
+          <span>Enable persona mode</span>
+        </label>
+        <button class="btn primary" id="createPersonaBtn">➕ Add persona manually</button>
+        <button class="btn magenta" id="generatePersonaBtn">⚡ Generate with AI</button>
+      </div>
+      <div class="persona-list" id="personaList">
+        <div class="empty-state">No personas yet. Add a new profile or let the AI craft one for you.</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="editor" id="personaEditor">
+        <h3>Persona details</h3>
+        <p style="color:var(--muted); font-size:0.9rem; margin:0;">Pick a persona to edit it, or press “Add persona” to start from scratch.</p>
+        <div class="form-group">
+          <label for="personaName">Name</label>
+          <input id="personaName" placeholder="Example: Maya the Panel Veteran">
+        </div>
+        <div class="form-group">
+          <label for="personaTagline">Tagline / short description</label>
+          <textarea id="personaTagline" rows="2" placeholder="Thrives in the toughest qualification screeners..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="personaDomains">Specialty domains (comma separated)</label>
+          <input id="personaDomains" placeholder="CPG, Healthcare, Automotive" />
+        </div>
+        <div class="form-group">
+          <label for="personaTone">Tone</label>
+          <input id="personaTone" placeholder="Confident, data-driven, personable" />
+        </div>
+        <div class="form-group">
+          <label for="personaPrompt">System Prompt</label>
+          <textarea id="personaPrompt" placeholder="Full instructions describing tactics, voice, and qualification strategies..."></textarea>
+        </div>
+        <div class="editor-actions">
+          <button class="btn primary" id="savePersonaBtn">💾 Save persona</button>
+          <button class="btn" id="cancelEditBtn">Cancel</button>
+        </div>
+        <div id="editorStatus" style="color:var(--muted); font-size:0.85rem;"></div>
+      </div>
+    </section>
+  </main>
+  <script src="personas.js" type="module"></script>
+</body>
+</html>
