@@ -5241,16 +5241,13 @@ function init() {
     try {
       const ctx = await getContext();
       const settings = await chrome.storage.local.get([
-        'showReasoning','reasonLang','cerebrasModel','aiProvider','googleModel','googleReasonModel',
+        'showReasoning','reasonLang','cerebrasModel',
         'personaEnabled','personaActiveName','personaActivePrompt','humanErrorRate'
       ]);
       const {
         showReasoning = false,
         reasonLang = 'English',
         cerebrasModel,
-        aiProvider = 'cerebras',
-        googleModel,
-        googleReasonModel,
         personaEnabled = false,
         personaActiveName = '',
         personaActivePrompt = '',
@@ -5264,7 +5261,7 @@ function init() {
         humanErrorRate
       };
       const cerebrasThinking = isThinkingModel(cerebrasModel);
-      const thinking = useReason || (aiProvider === 'cerebras' && cerebrasThinking);
+      const thinking = useReason || cerebrasThinking;
       let raw = '';
       let promptName = 'auto';
       let customPromptDetails = null;
@@ -5287,9 +5284,7 @@ function init() {
             reasoning: useReason,
             reasoningLevel: useReason ? 'HIGH' : undefined,
             thinkingBudget: useReason ? -1 : undefined,
-            temperature: useReason ? 0.15 : 0.2,
-            model: aiProvider === 'google' ? (googleModel || 'gemini-flash-latest') : undefined,
-            reasonModel: aiProvider === 'google' ? (googleReasonModel || googleModel || 'gemini-3-flash-preview') : undefined
+            temperature: useReason ? 0.15 : 0.2
           }
         });
         if (!response?.ok) throw new Error(response?.error || 'Generation failed');
@@ -5879,37 +5874,40 @@ function init() {
   }
 
   async function openAskModal() {
-    // Create Ask modal with the same structure as other modals
     const modal = document.createElement('div');
     modal.id = 'zepra-ask-modal';
     modal.innerHTML = `
       <div class="za-modal">
         <header class="za-header">
-          <h2>Ask Question</h2>
+          <div class="header-text">
+            <h2>Ask Zepra</h2>
+            <p>Chat with Zepra inside this window.</p>
+          </div>
           <button class="modal-close">×</button>
         </header>
         <main class="za-body">
-          <div class="ask-content">
-            <label class="ask-label">Type your question or inquiry:</label>
-            <textarea id="askInput" class="ask-input" placeholder="What would you like to ask?" rows="6"></textarea>
+          <div class="ask-chat">
+            <div class="chat-messages" aria-live="polite"></div>
           </div>
         </main>
         <footer class="za-footer">
-          <div class="modal-actions" style="display:flex;">
+          <div class="chat-composer">
+            <textarea id="askInput" class="ask-input" placeholder="Write your message..." rows="2"></textarea>
+            <button id="askSubmit" class="action-btn" data-color="purple" aria-label="Send message">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 2 11 13"/>
+                <path d="m22 2-7 20-4-9-9-4z"/>
+              </svg>
+              <span>Send</span>
+            </button>
+          </div>
+          <div class="modal-actions">
             <button id="askCancel" class="action-btn" data-color="gray">
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18"/>
                 <path d="m6 6 12 12"/>
               </svg>
               <span>Cancel</span>
-            </button>
-            <button id="askSubmit" class="action-btn" data-color="purple">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <path d="M12 17h.01"/>
-              </svg>
-              <span>Ask</span>
             </button>
           </div>
         </footer>
@@ -5996,6 +5994,12 @@ function init() {
         text-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
         letter-spacing: 0.5px;
       }
+
+      #zepra-ask-modal .za-header p {
+        margin: 6px 0 0;
+        color: #cbd5f5;
+        font-size: 13px;
+      }
       
       #zepra-ask-modal .modal-close {
         background: none;
@@ -6028,33 +6032,107 @@ function init() {
         gap: 20px;
       }
       
-      #zepra-ask-modal .ask-content {
+      #zepra-ask-modal .ask-chat {
         display: flex;
         flex-direction: column;
         gap: 12px;
+        height: min(420px, 55vh);
       }
       
-      #zepra-ask-modal .ask-label {
-        color: #e2e8f0;
+      #zepra-ask-modal .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(168, 85, 247, 0.6) transparent;
+      }
+      
+      #zepra-ask-modal .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      #zepra-ask-modal .chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(168, 85, 247, 0.5);
+        border-radius: 999px;
+      }
+
+      #zepra-ask-modal .chat-message {
+        display: flex;
+        gap: 10px;
+      }
+
+      #zepra-ask-modal .chat-message.user {
+        justify-content: flex-end;
+      }
+
+      #zepra-ask-modal .chat-bubble {
+        max-width: 78%;
+        padding: 12px 14px;
+        border-radius: 16px;
         font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 8px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+        border: 1px solid rgba(148, 163, 184, 0.15);
       }
-      
+
+      #zepra-ask-modal .chat-message.user .chat-bubble {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.35));
+        border-color: rgba(59, 130, 246, 0.4);
+        color: #e2e8f0;
+      }
+
+      #zepra-ask-modal .chat-message.ai .chat-bubble {
+        background: rgba(15, 23, 42, 0.85);
+        border-color: rgba(168, 85, 247, 0.3);
+        color: #f8fafc;
+        box-shadow: inset 0 0 20px rgba(148, 163, 184, 0.08);
+      }
+
+      #zepra-ask-modal .typing-indicator {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      #zepra-ask-modal .typing-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #a855f7;
+        animation: typing 1s infinite ease-in-out;
+      }
+
+      #zepra-ask-modal .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      #zepra-ask-modal .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing {
+        0%, 100% { transform: translateY(0); opacity: 0.4; }
+        50% { transform: translateY(-4px); opacity: 1; }
+      }
+
       #zepra-ask-modal .ask-input {
         background: rgba(15, 23, 42, 0.8);
         border: 1px solid rgba(168, 85, 247, 0.3);
         border-radius: 12px;
         color: #e2e8f0;
-        padding: 16px;
+        padding: 12px 14px;
         font-size: 14px;
         font-family: inherit;
         outline: none;
         transition: all 0.3s;
-        resize: vertical;
-        min-height: 180px;
-        max-height: 250px;
-        line-height: 1.5;
+        resize: none;
+        min-height: 46px;
+        max-height: 120px;
+        line-height: 1.6;
         width: 100%;
       }
       
@@ -6075,11 +6153,20 @@ function init() {
         backdrop-filter: blur(8px);
         border-top: 1px solid rgba(168, 85, 247, 0.2);
         padding: 18px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      #zepra-ask-modal .chat-composer {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
       }
       
       #zepra-ask-modal .modal-actions {
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
         gap: 12px;
       }
       
@@ -6096,7 +6183,7 @@ function init() {
         font-size: 14px;
         font-weight: 600;
         transition: all 0.3s;
-        min-width: 100px;
+        min-width: 110px;
         justify-content: center;
       }
       
@@ -6129,8 +6216,75 @@ function init() {
     document.head.appendChild(style);
     document.body.appendChild(modal);
     
-    // Focus on input
     const askInput = modal.querySelector('#askInput');
+    const chatMessages = modal.querySelector('.chat-messages');
+    const askSubmit = modal.querySelector('#askSubmit');
+    const conversation = [];
+
+    const scrollToBottom = () => {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
+
+    const addMessage = (role, text, isTyping = false) => {
+      const message = document.createElement('div');
+      message.className = `chat-message ${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      if (isTyping) {
+        bubble.innerHTML = `
+          <span class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </span>
+        `;
+      } else {
+        bubble.textContent = text;
+      }
+      message.appendChild(bubble);
+      chatMessages.appendChild(message);
+      scrollToBottom();
+      return message;
+    };
+
+    const buildChatPrompt = (history) => {
+      const formatted = history
+        .slice(-30)
+        .map((msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`)
+        .join('\n');
+      return `You are Zepra, a professional, friendly assistant. Answer clearly and concisely in English.\n- Use the conversation history to answer follow-up questions accurately.\n- Keep answers inside this chat window.\n- Avoid markdown unless the user explicitly requests it.\n\nConversation:\n${formatted}\n\nAssistant:`;
+    };
+
+    const restoreHistory = async () => {
+      try {
+        const { askChatHistory = [] } = await chrome.storage.local.get('askChatHistory');
+        if (Array.isArray(askChatHistory) && askChatHistory.length) {
+          askChatHistory.slice(-30).forEach((entry) => {
+            if (entry?.role && entry?.text) {
+              conversation.push({ role: entry.role, text: entry.text });
+              addMessage(entry.role, entry.text);
+            }
+          });
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    const persistHistory = async () => {
+      try {
+        await chrome.storage.local.set({ askChatHistory: conversation.slice(-50) });
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    await restoreHistory();
+    if (!conversation.length) {
+      addMessage('ai', 'Welcome! Ask anything and I will reply here in this window.');
+      conversation.push({ role: 'ai', text: 'Welcome! Ask anything and I will reply here in this window.' });
+      await persistHistory();
+    }
     setTimeout(() => askInput.focus(), 100);
     
     // Event listeners
@@ -6151,53 +6305,57 @@ function init() {
       style.remove();
     });
     
-    modal.querySelector('#askSubmit').addEventListener('click', async () => {
+    askSubmit.addEventListener('click', async () => {
       const question = askInput.value.trim();
       if (!question) {
         showNotification('Please enter a question');
         return;
       }
-      
-      modal.remove();
-      style.remove();
-      
-      // Set flag to prevent auto-generation in createRainbowModal
-      STATE.isFromAskModal = true;
-      
-      // Create a new answer modal with the asked question and immediately generate response
-      await createRainbowModal(question);
-      
-      // Reset flag
-      STATE.isFromAskModal = false;
-      
-      // Trigger answer generation immediately after modal creation
-      if (STATE.modal) {
-        const loadEl = STATE.modal.querySelector('.loading');
-        if (loadEl) {
-          loadEl.style.display = 'block';
-          await setLoadingMessage(loadEl);
-        }
-        
-        // Hide other elements during loading
-        const ansEl = STATE.modal.querySelector('.answer-text');
-        const splitPane = STATE.modal.querySelector('.split-pane');
-        const actions = STATE.modal.querySelector('.modal-actions');
-        
-        if (ansEl) ansEl.style.display = 'none';
-        if (splitPane) splitPane.style.display = 'none';
-        if (actions) actions.style.display = 'none';
-        
-        // Generate the answer with reason mode enabled
-        const { showReasoning = false } = await chrome.storage.local.get('showReasoning');
-        await generateAnswer(question, null, showReasoning);
+
+      askInput.value = '';
+      askInput.style.height = '';
+      addMessage('user', question);
+      conversation.push({ role: 'user', text: question });
+      await persistHistory();
+
+      askInput.disabled = true;
+      askSubmit.disabled = true;
+      const typingMessage = addMessage('ai', '', true);
+
+      try {
+        const prompt = buildChatPrompt(conversation);
+        const response = await chrome.runtime.sendMessage({
+          type: 'CEREBRAS_GENERATE',
+          prompt,
+          options: { temperature: 0.2 }
+        });
+        if (!response?.ok) throw new Error(response?.error || 'Generation failed');
+        const answer = String(response.result || '').trim() || '...';
+        typingMessage.remove();
+        addMessage('ai', answer);
+        conversation.push({ role: 'ai', text: answer });
+        await persistHistory();
+      } catch (error) {
+        typingMessage.remove();
+        addMessage('ai', 'Something went wrong while generating the response. Please try again.');
+        showNotification(String(error?.message || error), true);
+      } finally {
+        askInput.disabled = false;
+        askSubmit.disabled = false;
+        askInput.focus();
       }
     });
     
-    // Allow Enter key to submit (Ctrl+Enter or Shift+Enter for new line)
+    askInput.addEventListener('input', () => {
+      askInput.style.height = 'auto';
+      askInput.style.height = `${Math.min(120, askInput.scrollHeight)}px`;
+    });
+
+    // Allow Enter key to submit (Shift+Enter for new line)
     askInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        modal.querySelector('#askSubmit').click();
+        askSubmit.click();
       }
     });
   }
@@ -6355,7 +6513,7 @@ function init() {
         // If no valid JSON for reason mode, treat the whole text as answer
         return {
           answer: String(text || '').trim(),
-          reason: 'لم نستطع قراءة سبب من النموذج. يرجى المحاولة مجددًا أو مراجعة الإعدادات.'
+          reason: 'We could not parse the model reasoning. Please try again or review your settings.'
         };
       }
     }
@@ -6373,10 +6531,8 @@ function init() {
   }
 
   async function setLoadingMessage(el){
-    const { cerebrasModel, aiProvider = 'cerebras', showReasoning = false } = await chrome.storage.local.get(['cerebrasModel', 'aiProvider', 'showReasoning']);
-    if (aiProvider === 'google' && showReasoning) {
-      el.innerHTML = '<span class="thinking-icon">🧠</span><span>Thinking...</span>';
-    } else if (isThinkingModel(cerebrasModel)) {
+    const { cerebrasModel, showReasoning = false } = await chrome.storage.local.get(['cerebrasModel', 'showReasoning']);
+    if (showReasoning || isThinkingModel(cerebrasModel)) {
       el.innerHTML = '<span class="thinking-icon">🧠</span><span>Thinking...</span>';
     } else {
       el.textContent = 'Generating answer...';
@@ -8014,4 +8170,3 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-

@@ -1,6 +1,7 @@
 const grid = document.getElementById('grid');
 const createBtn = document.getElementById('create');
 const createAIBtn = document.getElementById('createAI');
+const exportIdentityPdfBtn = document.getElementById('exportIdentityPdf');
 const panel = document.getElementById('identityPanel');
 const panelTitle = document.getElementById('panelTitle');
 const closePanelBtn = document.getElementById('closePanel');
@@ -195,6 +196,7 @@ form.addEventListener('submit', e=>{
 try{ createBtn.addEventListener('click', ()=>openPanel()); }catch(_){}
 try{ createAIBtn.addEventListener('click', ()=>{ aiPrompt.value=''; openPanel({}, 'ai'); }); }catch(_){}
 try{ closePanelBtn.addEventListener('click', closePanel); }catch(_){}
+try{ exportIdentityPdfBtn.addEventListener('click', exportIdentityPdf); }catch(_){}
 
 // Delegated safety net
 document.addEventListener('click', (e)=>{
@@ -239,3 +241,13 @@ aiGenerate.addEventListener('click', async () => {
 
 load();
 
+async function exportIdentityPdf() {
+  if (!identities.length) {
+    alert('No identities available to export.');
+    return;
+  }
+  const active = identities.find((item) => item.id === activeId) || identities[0];
+  await chrome.storage.local.set({ identityPdfPayload: active });
+  const url = chrome.runtime.getURL('identities_export.html');
+  await chrome.tabs.create({ url });
+}
