@@ -191,8 +191,8 @@ async function handleMode(mode){
     lastQuestion = questionText;
 
     const ctx   = await getContext();
-    const { cerebrasModel, aiProvider = 'cerebras', googleModel, googleReasonModel } = await chrome.storage.local.get(['cerebrasModel','aiProvider','googleModel','googleReasonModel']);
-    const thinking = isThinkingModel(cerebrasModel) || aiProvider === 'google';
+    const { cerebrasModel } = await chrome.storage.local.get(['cerebrasModel']);
+    const thinking = isThinkingModel(cerebrasModel);
 
     if (thinking) {
       els.status.innerHTML = '<span class="thinking-icon">🧠</span> Thinking...';
@@ -208,9 +208,7 @@ async function handleMode(mode){
         reasoning: thinking,
         reasoningLevel: thinking ? 'HIGH' : undefined,
         thinkingBudget: thinking ? -1 : undefined,
-        temperature: 0.2,
-        model: aiProvider === 'google' ? (googleModel || 'gemini-flash-latest') : undefined,
-        reasonModel: aiProvider === 'google' ? (googleReasonModel || 'gemini-3-flash-preview') : undefined
+        temperature: 0.2
       }
     });
 
@@ -290,8 +288,8 @@ async function runCustomPrompt(pr){
   }
   setBusy(true); notify('');
   try {
-    const { cerebrasModel, aiProvider = 'cerebras', googleModel, googleReasonModel } = await chrome.storage.local.get(['cerebrasModel','aiProvider','googleModel','googleReasonModel']);
-    const thinking = isThinkingModel(cerebrasModel) || aiProvider === 'google';
+    const { cerebrasModel } = await chrome.storage.local.get(['cerebrasModel']);
+    const thinking = isThinkingModel(cerebrasModel);
     if (thinking) {
       els.status.innerHTML = '<span class="thinking-icon">🧠</span> Thinking...';
     } else {
@@ -306,9 +304,7 @@ async function runCustomPrompt(pr){
         reasoning: thinking,
         reasoningLevel: thinking ? 'HIGH' : undefined,
         thinkingBudget: thinking ? -1 : undefined,
-        temperature: 0.2,
-        model: aiProvider === 'google' ? (googleModel || 'gemini-flash-latest') : undefined,
-        reasonModel: aiProvider === 'google' ? (googleReasonModel || 'gemini-3-flash-preview') : undefined
+        temperature: 0.2
       }
     });
     if (!gen?.ok) throw new Error(gen?.error||'Generate failed');
