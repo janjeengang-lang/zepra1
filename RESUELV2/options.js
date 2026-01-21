@@ -12,18 +12,6 @@ class ModernOptionsManager {
     this.setupNavigation();
   }
 
-  toggleProviderSections() {
-    const provider = this.elements.aiProvider?.value || 'cerebras';
-    document.querySelectorAll('.provider-field').forEach(field => {
-      const targetProvider = field.dataset.provider;
-      const shouldShow = !targetProvider || targetProvider === provider;
-      field.style.display = shouldShow ? '' : 'none';
-      field.querySelectorAll('input, select, textarea, button').forEach(el => {
-        el.disabled = !shouldShow;
-      });
-    });
-  }
-
   initializeElements() {
     this.elements = {
       // Navigation
@@ -43,9 +31,6 @@ class ModernOptionsManager {
       primaryColor: document.getElementById('primaryColor'),
       cerebrasKey: document.getElementById('cerebrasKey'),
       cerebrasModel: document.getElementById('cerebrasModel'),
-      aiProvider: document.getElementById('aiProvider'),
-      googleKey: document.getElementById('googleKey'),
-      googleModel: document.getElementById('googleModel'),
       ocrKey: document.getElementById('ocrKey'),
       ipdataKey: document.getElementById('ipdataKey'),
       testIpdata: document.getElementById('testIpdata'),
@@ -103,7 +88,6 @@ class ModernOptionsManager {
     this.elements.primaryColor?.addEventListener('input', (e) => this.updateThemeColor(e.target.value));
     this.elements.humanErrorRate?.addEventListener('input', (e) => this.updateHumanErrorDisplay(e.target.value));
     this.elements.openPersonas?.addEventListener('click', () => this.openPersonasHub());
-    this.elements.aiProvider?.addEventListener('change', () => this.toggleProviderSections());
 
     // Prompt management
     this.elements.savePrompt?.addEventListener('click', () => this.savePrompt());
@@ -121,17 +105,12 @@ class ModernOptionsManager {
       const settings = await chrome.storage.local.get([
         'cerebrasApiKey', 'cerebrasModel', 'ocrApiKey', 'ipdataApiKey',
         'typingSpeed', 'ocrLang', 'customWebSize', 'primaryColor',
-        'showReasoning', 'reasonLang', 'autofillWithAI', 'humanErrorRate',
-        'aiProvider', 'googleApiKey', 'googleModel', 'googleReasonModel'
+        'showReasoning', 'reasonLang', 'autofillWithAI', 'humanErrorRate'
       ]);
 
       // Populate form fields
       if (this.elements.cerebrasKey) this.elements.cerebrasKey.value = settings.cerebrasApiKey || '';
       if (this.elements.cerebrasModel) this.elements.cerebrasModel.value = settings.cerebrasModel || 'gpt-oss-120b';
-      if (this.elements.aiProvider) this.elements.aiProvider.value = settings.aiProvider || 'cerebras';
-      if (this.elements.googleKey) this.elements.googleKey.value = settings.googleApiKey || '';
-      const effectiveGoogleModel = settings.googleModel || 'gemini-flash-latest';
-      if (this.elements.googleModel) this.elements.googleModel.value = effectiveGoogleModel;
       if (this.elements.ocrKey) this.elements.ocrKey.value = settings.ocrApiKey || '';
       if (this.elements.ipdataKey) this.elements.ipdataKey.value = settings.ipdataApiKey || '';
       if (this.elements.typingSpeed) this.elements.typingSpeed.value = settings.typingSpeed || 'normal';
@@ -153,8 +132,6 @@ class ModernOptionsManager {
         this.updateThemeColor(settings.primaryColor);
       }
 
-      this.toggleProviderSections();
-
       // Store original values for change tracking
       this.storeOriginalValues();
       
@@ -172,9 +149,6 @@ class ModernOptionsManager {
     this.originalValues = {
       cerebrasKey: this.elements.cerebrasKey?.value || '',
       cerebrasModel: this.elements.cerebrasModel?.value || '',
-      aiProvider: this.elements.aiProvider?.value || 'cerebras',
-      googleKey: this.elements.googleKey?.value || '',
-      googleModel: this.elements.googleModel?.value || '',
       ocrKey: this.elements.ocrKey?.value || '',
       ipdataKey: this.elements.ipdataKey?.value || '',
       typingSpeed: this.elements.typingSpeed?.value || '',
@@ -198,9 +172,6 @@ class ModernOptionsManager {
       this.elements.autofillWithAI
     ];
 
-    // Provider specific
-    formElements.push(this.elements.aiProvider, this.elements.googleKey, this.elements.googleModel);
-
     formElements.forEach(element => {
       if (!element) return;
       
@@ -213,9 +184,6 @@ class ModernOptionsManager {
     const currentValues = {
       cerebrasKey: this.elements.cerebrasKey?.value || '',
       cerebrasModel: this.elements.cerebrasModel?.value || '',
-      aiProvider: this.elements.aiProvider?.value || 'cerebras',
-      googleKey: this.elements.googleKey?.value || '',
-      googleModel: this.elements.googleModel?.value || '',
       ocrKey: this.elements.ocrKey?.value || '',
       ipdataKey: this.elements.ipdataKey?.value || '',
       typingSpeed: this.elements.typingSpeed?.value || '',
@@ -346,9 +314,6 @@ class ModernOptionsManager {
       const settings = {
         cerebrasApiKey: this.elements.cerebrasKey?.value?.trim() || '',
         cerebrasModel: this.elements.cerebrasModel?.value || 'gpt-oss-120b',
-        aiProvider: this.elements.aiProvider?.value || 'cerebras',
-        googleApiKey: this.elements.googleKey?.value?.trim() || '',
-        googleModel: this.elements.googleModel?.value?.trim() || 'gemini-flash-latest',
         ocrApiKey: this.elements.ocrKey?.value?.trim() || '',
         ipdataApiKey: this.elements.ipdataKey?.value?.trim() || '',
         typingSpeed: this.elements.typingSpeed?.value || 'normal',
@@ -365,14 +330,6 @@ class ModernOptionsManager {
       };
 
       await chrome.storage.local.set(settings);
-
-      // Update reasoning-capable fallback model when using Google provider
-      const googleReasonFallbacks = {
-        'gemini-flash-latest': 'gemini-3-flash-preview',
-        'gemini-3-flash-preview': 'gemini-3-flash-preview'
-      };
-      const googleReasonModel = googleReasonFallbacks[settings.googleModel] || 'gemini-3-flash-preview';
-      await chrome.storage.local.set({ googleReasonModel });
       
       // Update original values
       this.storeOriginalValues();
@@ -403,7 +360,6 @@ class ModernOptionsManager {
     // Update theme
     this.updateThemeColor(this.originalValues.primaryColor);
     this.updateHumanErrorDisplay(this.originalValues.humanErrorRate);
-    this.toggleProviderSections();
     
     this.hasUnsavedChanges = false;
     this.toggleSaveBar(false);
