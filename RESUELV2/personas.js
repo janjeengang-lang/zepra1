@@ -3,6 +3,7 @@ const els = {
   togglePersona: document.getElementById('togglePersona'),
   createPersonaBtn: document.getElementById('createPersonaBtn'),
   generatePersonaBtn: document.getElementById('generatePersonaBtn'),
+  exportPersonaPdf: document.getElementById('exportPersonaPdf'),
   personaName: document.getElementById('personaName'),
   personaTagline: document.getElementById('personaTagline'),
   personaDomains: document.getElementById('personaDomains'),
@@ -33,6 +34,7 @@ function attachEvents() {
   els.togglePersona?.addEventListener('change', handleTogglePersona);
   els.createPersonaBtn?.addEventListener('click', () => startEdit());
   els.generatePersonaBtn?.addEventListener('click', generatePersonaWithAI);
+  els.exportPersonaPdf?.addEventListener('click', exportPersonaPdf);
   els.savePersonaBtn?.addEventListener('click', savePersona);
   els.cancelEditBtn?.addEventListener('click', resetEditor);
 }
@@ -252,6 +254,16 @@ async function generatePersonaWithAI() {
     STATE.isGenerating = false;
     updateEditorStatus('Select a persona to edit or add a new one.');
   }
+}
+
+async function exportPersonaPdf() {
+  if (!STATE.personas.length) {
+    toast('No personas available to export.', 'warn');
+    return;
+  }
+  await chrome.storage.local.set({ personaPdfPayload: STATE.personas });
+  const url = chrome.runtime.getURL('personas_export.html');
+  await chrome.tabs.create({ url });
 }
 
 function normalizePersona(p) {

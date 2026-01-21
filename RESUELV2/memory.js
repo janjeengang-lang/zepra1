@@ -3,6 +3,7 @@ const els = {
   memoryStream: document.getElementById('memoryStream'),
   refreshInsight: document.getElementById('refreshInsight'),
   exportMemory: document.getElementById('exportMemory'),
+  exportMemoryPdf: document.getElementById('exportMemoryPdf'),
   clearMemory: document.getElementById('clearMemory'),
 };
 
@@ -31,6 +32,7 @@ async function loadData() {
 function attachEvents() {
   els.refreshInsight?.addEventListener('click', refreshInsight);
   els.exportMemory?.addEventListener('click', exportMemory);
+  els.exportMemoryPdf?.addEventListener('click', exportMemoryPdf);
   els.clearMemory?.addEventListener('click', clearMemory);
 }
 
@@ -79,6 +81,22 @@ async function exportMemory() {
   a.click();
   URL.revokeObjectURL(url);
   toast('Memory exported successfully.');
+}
+
+async function exportMemoryPdf() {
+  if (!STATE.entries.length) {
+    toast('No entries available for export.', 'warn');
+    return;
+  }
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    totalEntries: STATE.entries.length,
+    insight: STATE.insight,
+    entries: STATE.entries.map(normalizeEntry)
+  };
+  await chrome.storage.local.set({ memoryPdfPayload: payload });
+  const url = chrome.runtime.getURL('memory_export.html');
+  await chrome.tabs.create({ url });
 }
 
 async function clearMemory() {
