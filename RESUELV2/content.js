@@ -5241,16 +5241,13 @@ function init() {
     try {
       const ctx = await getContext();
       const settings = await chrome.storage.local.get([
-        'showReasoning','reasonLang','cerebrasModel','aiProvider','googleModel','googleReasonModel',
+        'showReasoning','reasonLang','cerebrasModel',
         'personaEnabled','personaActiveName','personaActivePrompt','humanErrorRate'
       ]);
       const {
         showReasoning = false,
         reasonLang = 'English',
         cerebrasModel,
-        aiProvider = 'cerebras',
-        googleModel,
-        googleReasonModel,
         personaEnabled = false,
         personaActiveName = '',
         personaActivePrompt = '',
@@ -5264,7 +5261,7 @@ function init() {
         humanErrorRate
       };
       const cerebrasThinking = isThinkingModel(cerebrasModel);
-      const thinking = useReason || (aiProvider === 'cerebras' && cerebrasThinking);
+      const thinking = useReason || cerebrasThinking;
       let raw = '';
       let promptName = 'auto';
       let customPromptDetails = null;
@@ -5287,9 +5284,7 @@ function init() {
             reasoning: useReason,
             reasoningLevel: useReason ? 'HIGH' : undefined,
             thinkingBudget: useReason ? -1 : undefined,
-            temperature: useReason ? 0.15 : 0.2,
-            model: aiProvider === 'google' ? (googleModel || 'gemini-flash-latest') : undefined,
-            reasonModel: aiProvider === 'google' ? (googleReasonModel || googleModel || 'gemini-3-flash-preview') : undefined
+            temperature: useReason ? 0.15 : 0.2
           }
         });
         if (!response?.ok) throw new Error(response?.error || 'Generation failed');
@@ -6373,10 +6368,8 @@ function init() {
   }
 
   async function setLoadingMessage(el){
-    const { cerebrasModel, aiProvider = 'cerebras', showReasoning = false } = await chrome.storage.local.get(['cerebrasModel', 'aiProvider', 'showReasoning']);
-    if (aiProvider === 'google' && showReasoning) {
-      el.innerHTML = '<span class="thinking-icon">🧠</span><span>Thinking...</span>';
-    } else if (isThinkingModel(cerebrasModel)) {
+    const { cerebrasModel, showReasoning = false } = await chrome.storage.local.get(['cerebrasModel', 'showReasoning']);
+    if (showReasoning || isThinkingModel(cerebrasModel)) {
       el.innerHTML = '<span class="thinking-icon">🧠</span><span>Thinking...</span>';
     } else {
       el.textContent = 'Generating answer...';
@@ -8014,4 +8007,3 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-
