@@ -3,6 +3,7 @@ const els = {
   togglePersona: document.getElementById('togglePersona'),
   createPersonaBtn: document.getElementById('createPersonaBtn'),
   generatePersonaBtn: document.getElementById('generatePersonaBtn'),
+  exportPersonaPdf: document.getElementById('exportPersonaPdf'),
   personaName: document.getElementById('personaName'),
   personaTagline: document.getElementById('personaTagline'),
   personaDomains: document.getElementById('personaDomains'),
@@ -33,6 +34,7 @@ function attachEvents() {
   els.togglePersona?.addEventListener('change', handleTogglePersona);
   els.createPersonaBtn?.addEventListener('click', () => startEdit());
   els.generatePersonaBtn?.addEventListener('click', generatePersonaWithAI);
+  els.exportPersonaPdf?.addEventListener('click', exportPersonaPdf);
   els.savePersonaBtn?.addEventListener('click', savePersona);
   els.cancelEditBtn?.addEventListener('click', resetEditor);
 }
@@ -254,6 +256,27 @@ async function generatePersonaWithAI() {
   }
 }
 
+async function exportPersonaPdf() {
+  if (!STATE.personas.length) {
+    toast('No personas available to export.', 'warn');
+    return;
+  }
+  showExportOverlay('Rendering your PDF...');
+  try {
+    const resp = await chrome.runtime.sendMessage({
+      type: 'EXPORT_PDF',
+      exportType: 'personas',
+      payload: STATE.personas
+    });
+    if (!resp?.ok) throw new Error(resp?.error || 'PDF export failed');
+    toast('Personas PDF downloaded.');
+  } catch (err) {
+    toast(`Failed to export PDF: ${err.message || err}`, 'error');
+  } finally {
+    hideExportOverlay();
+  }
+}
+
 function normalizePersona(p) {
   return {
     id: p.id || `persona_${Date.now()}`,
@@ -313,6 +336,45 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function showExportOverlay(label) {
+  let overlay = document.getElementById('personas-export-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'personas-export-overlay';
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border:3px solid rgba(148,163,184,0.3);border-top-color:#39ff14;border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <div class="export-label" style="font-weight:600;color:#e2e8f0;">${label}</div>
+        <div style="font-size:12px;color:#94a3b8;">Generating your personas PDF...</div>
+      </div>
+    `;
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(2,6,23,0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      backdrop-filter: blur(10px);
+    `;
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    overlay.appendChild(style);
+    document.body.appendChild(overlay);
+  } else {
+    overlay.querySelector('.export-label').textContent = label;
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideExportOverlay() {
+  const overlay = document.getElementById('personas-export-overlay');
+  if (overlay) overlay.remove();
 }
 
 async function handleStorageChange(changes, area) {

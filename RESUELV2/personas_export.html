@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zepra Personas Hub - Export</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --zepra: #00dc82;
+      --bg-dark: #050505;
+      --card-bg: #111;
+      --border: #2a2e35;
+      --code-bg: #080a0c;
+      --text-main: #ffffff;
+      --text-muted: #8b949e;
+    }
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: #333;
+      font-family: 'Inter', sans-serif;
+    }
+    .sheet {
+      width: 210mm;
+      height: 297mm;
+      background-color: var(--bg-dark);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      margin: 0 auto 20px auto;
+      padding: 15mm;
+      overflow: hidden;
+    }
+    @media print {
+      body { background: none; }
+      .sheet {
+        margin: 0;
+        width: 210mm;
+        height: 297mm;
+        page-break-after: always;
+        border: none;
+      }
+      .no-print { display: none !important; }
+    }
+    .header {
+      height: 50px;
+      border-bottom: 2px solid var(--zepra);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .brand {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20pt;
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand i { color: var(--zepra); }
+    .meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9pt;
+      color: var(--zepra);
+      text-align: right;
+    }
+    .footer {
+      height: 30px;
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8pt;
+      color: var(--text-muted);
+    }
+    .content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .persona-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--zepra);
+      border-radius: 6px;
+      padding: 15px;
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 8px;
+    }
+    .role-info h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14pt;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .role-desc {
+      font-size: 9pt;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: block;
+    }
+    .card-icon {
+      color: var(--zepra);
+      font-size: 12pt;
+    }
+    .prompt-container {
+      background-color: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+      position: relative;
+    }
+    .prompt-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 7pt;
+      text-transform: uppercase;
+      color: var(--zepra);
+      margin-bottom: 5px;
+      display: block;
+      font-weight: bold;
+    }
+    .prompt-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8.5pt;
+      line-height: 1.4;
+      color: #d0d0d0;
+      text-align: justify;
+    }
+    .highlight { color: var(--zepra); font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="render-area"></div>
+  <script>
+    const ROOT = document.getElementById('render-area');
+    const SAFE_HEIGHT = 900;
+
+    let pageNum = 0;
+    let currentContainer = null;
+    let currentH = 0;
+
+    const escapeHTML = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+    function addPage(dateLabel) {
+      pageNum++;
+      const page = document.createElement('div');
+      page.className = 'sheet';
+      page.innerHTML = `
+        <div class="header">
+          <div class="brand"><i class="fas fa-layer-group"></i> ZEPRA HUB</div>
+          <div class="meta">
+            CONFIDENTIAL<br>
+            ${dateLabel}
+          </div>
+        </div>
+        <div class="content"></div>
+        <div class="footer">
+          <span>AI Generated Manifest</span>
+          <span>Page ${String(pageNum).padStart(2, '0')}</span>
+        </div>
+      `;
+      ROOT.appendChild(page);
+      currentContainer = page.querySelector('.content');
+      currentH = 0;
+    }
+
+    const measureBox = document.createElement('div');
+    measureBox.style.cssText = "position:absolute; visibility:hidden; width:180mm; font-family:'Inter', sans-serif;";
+    document.body.appendChild(measureBox);
+
+    const params = new URLSearchParams(window.location.search);
+    const exportJobId = params.get('jobId') || '';
+
+    async function requestJobPayload() {
+      if (!exportJobId || typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return null;
+      return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'EXPORT_PAYLOAD_REQUEST', jobId: exportJobId }, (response) => {
+          resolve(response?.payload || null);
+        });
+      });
+    }
+
+    async function readPayload() {
+      const jobPayload = await requestJobPayload();
+      if (jobPayload) return jobPayload;
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        const { personaPdfPayload = [] } = await chrome.storage.local.get('personaPdfPayload');
+        return personaPdfPayload;
+      }
+      return [];
+    }
+
+    async function render() {
+      const personaPdfPayload = await readPayload();
+      const personas = Array.isArray(personaPdfPayload) ? personaPdfPayload : [];
+      const dateLabel = new Date().toLocaleDateString('en-GB');
+
+      addPage(dateLabel);
+
+      personas.forEach((p, idx) => {
+        const cardHTML = `
+          <div class="persona-card">
+            <div class="card-head">
+              <div class="role-info">
+                <h2><i class="fas fa-user-circle card-icon"></i> ${escapeHTML(p.name || `Persona ${idx + 1}`)}</h2>
+                <span class="role-desc">${escapeHTML(p.tagline || '')}</span>
+              </div>
+            </div>
+            <div class="prompt-container">
+              <span class="prompt-tag">SYSTEM PROMPT</span>
+              <div class="prompt-text">${escapeHTML(p.prompt || '')}</div>
+            </div>
+          </div>`;
+
+        measureBox.innerHTML = cardHTML;
+        const elHeight = measureBox.offsetHeight + 15;
+
+        if (currentH + elHeight > SAFE_HEIGHT) {
+          addPage(dateLabel);
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = cardHTML;
+        currentContainer.appendChild(wrapper.firstElementChild);
+        currentH += elHeight;
+      });
+    }
+
+    render().then(() => {
+      if (exportJobId && typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ type: 'EXPORT_RENDERED', jobId: exportJobId });
+      }
+    });
+  </script>
+</body>
+</html>
